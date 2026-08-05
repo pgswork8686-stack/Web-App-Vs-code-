@@ -1,5 +1,11 @@
-import { pgTable, uuid, text, boolean, timestamp, jsonb, primaryKey, integer, uniqueIndex } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { pgTable, uuid, text, boolean, timestamp, jsonb, primaryKey, integer, uniqueIndex, pgEnum, index } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+
+// Enums definitions
+export const accountTypeEnum = pgEnum('account_type', ['INTERNAL', 'CLIENT']);
+export const profileStatusEnum = pgEnum('profile_status', ['PENDING_ASSIGNMENT', 'ACTIVE', 'SUSPENDED', 'DISABLED']);
+export const priorityEnum = pgEnum('notification_priority', ['LOW', 'NORMAL', 'HIGH']);
+export const deliveryStatusEnum = pgEnum('delivery_status', ['PENDING', 'SENT', 'FAILED']);
 
 // 1. Departments
 export const departments = pgTable('departments', {
@@ -8,8 +14,8 @@ export const departments = pgTable('departments', {
   name: text('name').notNull(),
   description: text('description'),
   is_demo: boolean('is_demo').default(false).notNull(),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // 2. Customer Organizations
@@ -19,8 +25,8 @@ export const customerOrganizations = pgTable('customer_organizations', {
   name: text('name').notNull(),
   description: text('description'),
   is_demo: boolean('is_demo').default(false).notNull(),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // 3. Roles
@@ -30,8 +36,8 @@ export const roles = pgTable('roles', {
   name: text('name').notNull(),
   description: text('description'),
   is_system: boolean('is_system').default(true).notNull(),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // 4. Permissions
@@ -41,38 +47,46 @@ export const permissions = pgTable('permissions', {
   name: text('name').notNull(),
   description: text('description'),
   module: text('module').notNull(), // user, department, project, v.v.
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // 5. Role Permissions Junction
 export const rolePermissions = pgTable('role_permissions', {
   role_id: uuid('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
   permission_id: uuid('permission_id').notNull().references(() => permissions.id, { onDelete: 'cascade' }),
-  created_at: timestamp('created_at').defaultNow().notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   pk: primaryKey({ columns: [table.role_id, table.permission_id] }),
+  roleIdIdx: index('role_permissions_role_id_idx').on(table.role_id),
+  permissionIdIdx: index('role_permissions_permission_id_idx').on(table.permission_id),
 }));
 
 // 6. Profiles (Business User profile mapped to Supabase auth.users)
 export const profiles = pgTable('profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
   auth_user_id: uuid('auth_user_id').notNull().unique(),
-  email: text('email').notNull().unique(),
+  email: text('email').notNull(),
   full_name: text('full_name'),
   avatar_url: text('avatar_url'),
-  account_type: text('account_type').notNull(), // INTERNAL, CLIENT
+  account_type: accountTypeEnum('account_type').notNull(), // INTERNAL, CLIENT
   role_id: uuid('role_id').references(() => roles.id, { onDelete: 'set null' }),
   department_id: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
   customer_organization_id: uuid('customer_organization_id').references(() => customerOrganizations.id, { onDelete: 'set null' }),
-  status: text('status').default('PENDING_ASSIGNMENT').notNull(), // PENDING_ASSIGNMENT, ACTIVE, SUSPENDED, DISABLED
-  last_login_at: timestamp('last_login_at'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  status: profileStatusEnum('status').default('PENDING_ASSIGNMENT').notNull(),
+  last_login_at: timestamp('last_login_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   created_by: uuid('created_by'),
   updated_by: uuid('updated_by'),
   is_demo: boolean('is_demo').default(false).notNull(),
-});
+}, (table) => ({
+  emailLowerIdx: uniqueIndex('profiles_email_lower_idx').on(sql`lower(${table.email})`),
+  statusIdx: index('profiles_status_idx').on(table.status),
+  roleIdIdx: index('profiles_role_id_idx').on(table.role_id),
+  departmentIdIdx: index('profiles_department_id_idx').on(table.department_id),
+  custOrgIdIdx: index('profiles_customer_org_id_idx').on(table.customer_organization_id),
+}));
 
 // 7. Audit Logs
 export const auditLogs = pgTable('audit_logs', {
@@ -87,8 +101,12 @@ export const auditLogs = pgTable('audit_logs', {
   ip_address: text('ip_address'),
   user_agent: text('user_agent'),
   request_id: text('request_id'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-});
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  entityTypeIdx: index('audit_logs_entity_type_id_idx').on(table.entity_type, table.entity_id),
+  createdAtIdx: index('audit_logs_created_at_idx').on(table.created_at),
+  actorProfileIdIdx: index('audit_logs_actor_profile_id_idx').on(table.actor_profile_id),
+}));
 
 // 8. Notifications
 export const notifications = pgTable('notifications', {
@@ -96,34 +114,40 @@ export const notifications = pgTable('notifications', {
   event_type: text('event_type').notNull(), // e.g. task.assigned, leave.approved
   title: text('title').notNull(),
   body: text('body').notNull(),
-  priority: text('priority').default('NORMAL').notNull(), // LOW, NORMAL, HIGH
+  priority: priorityEnum('priority').default('NORMAL').notNull(), // LOW, NORMAL, HIGH
   actor_profile_id: uuid('actor_profile_id').references(() => profiles.id, { onDelete: 'set null' }),
   entity_type: text('entity_type'),
   entity_id: uuid('entity_id'),
   action_url: text('action_url'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-});
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  createdAtIdx: index('notifications_created_at_idx').on(table.created_at),
+}));
 
 // 9. Notification Recipients
 export const notificationRecipients = pgTable('notification_recipients', {
   id: uuid('id').primaryKey().defaultRandom(),
   notification_id: uuid('notification_id').notNull().references(() => notifications.id, { onDelete: 'cascade' }),
   profile_id: uuid('profile_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
-  read_at: timestamp('read_at'),
-  handled_at: timestamp('handled_at'),
-  archived_at: timestamp('archived_at'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-});
+  read_at: timestamp('read_at', { withTimezone: true }),
+  handled_at: timestamp('handled_at', { withTimezone: true }),
+  archived_at: timestamp('archived_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqRecipient: uniqueIndex('uniq_notification_recipient').on(table.notification_id, table.profile_id),
+  profileReadIdx: index('notification_recipients_profile_read_idx').on(table.profile_id, table.read_at),
+  profileHandledIdx: index('notification_recipients_profile_handled_idx').on(table.profile_id, table.handled_at),
+}));
 
 // 10. Notification Preferences
 export const notificationPreferences = pgTable('notification_preferences', {
   id: uuid('id').primaryKey().defaultRandom(),
   profile_id: uuid('profile_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   event_type: text('event_type').notNull(),
-  channel: text('channel').notNull(), // in_app, email
+  channel: text('channel').notNull(), // IN_APP, EMAIL
   enabled: boolean('enabled').default(true).notNull(),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   uniq_pref: uniqueIndex('uniq_profile_event_channel').on(table.profile_id, table.event_type, table.channel),
 }));
@@ -132,12 +156,12 @@ export const notificationPreferences = pgTable('notification_preferences', {
 export const notificationDeliveries = pgTable('notification_deliveries', {
   id: uuid('id').primaryKey().defaultRandom(),
   recipient_id: uuid('recipient_id').notNull().references(() => notificationRecipients.id, { onDelete: 'cascade' }),
-  channel: text('channel').notNull(), // in_app, email
-  delivery_status: text('delivery_status').notNull(), // PENDING, SENT, FAILED
+  channel: text('channel').notNull(), // IN_APP, EMAIL
+  delivery_status: deliveryStatusEnum('delivery_status').notNull(), // PENDING, SENT, FAILED
   failure_reason: text('failure_reason'),
   retry_count: integer('retry_count').default(0).notNull(),
-  sent_at: timestamp('sent_at'),
-  created_at: timestamp('created_at').defaultNow().notNull(),
+  sent_at: timestamp('sent_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // Relations Definitions

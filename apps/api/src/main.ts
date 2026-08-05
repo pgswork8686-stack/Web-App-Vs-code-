@@ -1,3 +1,4 @@
+import './config/env'; // Must be first to fail fast
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -32,7 +33,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
 
-  const port = process.env.API_PORT || 3001;
+  const { env } = await import('./config/env');
+  const port = env.API_PORT;
   await app.listen(port, '0.0.0.0');
   console.log(`NestJS API running on: http://localhost:${port}/api`);
 }

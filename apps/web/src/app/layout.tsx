@@ -1,3 +1,4 @@
+import "../config/env"; // Fail fast check
 import type { Metadata } from "next";
 import "./globals.css";
 

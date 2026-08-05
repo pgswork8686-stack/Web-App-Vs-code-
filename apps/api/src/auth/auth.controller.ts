@@ -20,14 +20,10 @@ export class AuthController {
     };
   }
 
+  @ApiBearerAuth()
+  @UseGuards(SupabaseJwtGuard)
   @Post('bootstrap')
-  async bootstrap(@Body() body: { auth_user_id: string; email: string; full_name?: string; avatar_url?: string }) {
-    const profile = await this.authService.bootstrapProfile(
-      body.auth_user_id,
-      body.email,
-      body.full_name,
-      body.avatar_url
-    );
+  async bootstrap(@CurrentProfile() profile: any) {
     return {
       data: profile,
       meta: {},

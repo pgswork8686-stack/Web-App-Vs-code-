@@ -8,6 +8,13 @@
       "when": 1785835509450,
       "tag": "0000_secret_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785896069718,
+      "tag": "0001_last_mongoose",
+      "breakpoints": true
     }
   ]
 }

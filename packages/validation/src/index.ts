@@ -29,6 +29,38 @@ export const UpdateUserStatusSchema = z.object({
 
 export type UpdateUserStatusInput = z.infer<typeof UpdateUserStatusSchema>;
 
+export const UuidSchema = z.string().uuid('ID không đúng định dạng UUID');
+
+export const NotificationPreferenceSchema = z.object({
+  channel: z.enum(['IN_APP', 'EMAIL']),
+  enabled: z.boolean(),
+});
+
+export type NotificationPreferenceInput = z.infer<typeof NotificationPreferenceSchema>;
+
+export const NotificationFilterSchema = z.object({
+  status: z.enum(['ALL', 'UNREAD', 'READ', 'ARCHIVED']).default('ALL'),
+});
+
+export type NotificationFilterInput = z.infer<typeof NotificationFilterSchema>;
+
+export const UpdateNotificationPreferencesSchema = z.object({
+  preferences: z.array(z.object({
+    event_type: z.string().min(1),
+    channel: z.enum(['IN_APP', 'EMAIL']),
+    enabled: z.boolean(),
+  })),
+});
+
+export type UpdateNotificationPreferencesInput = z.infer<typeof UpdateNotificationPreferencesSchema>;
+
+export const PaginationSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export type PaginationInput = z.infer<typeof PaginationSchema>;
+
 export const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
   WEB_PORT: z.string().default('3000'),

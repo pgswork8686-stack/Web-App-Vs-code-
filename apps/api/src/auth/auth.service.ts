@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { profiles, roles, rolePermissions, permissions } from '@pgs/database';
 import { eq } from '@pgs/database';
@@ -25,6 +25,12 @@ export class AuthService {
       throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
     }
 
+    if (!user.email) {
+      throw new UnprocessableEntityException('AUTH_EMAIL_REQUIRED');
+    }
+
+    const normalizedEmail = user.email.toLowerCase();
+
     // 1. Get or create profile
     let profile = await this.dbService.db.query.profiles.findFirst({
       where: eq(profiles.auth_user_id, user.id),
@@ -39,8 +45,8 @@ export class AuthService {
       // Create new profile with PENDING_ASSIGNMENT status
       const [newProfile] = await this.dbService.db.insert(profiles).values({
         auth_user_id: user.id,
-        email: user.email,
-        full_name: user.user_metadata?.full_name || user.email.split('@')[0],
+        email: normalizedEmail,
+        full_name: user.user_metadata?.full_name || normalizedEmail.split('@')[0],
         avatar_url: user.user_metadata?.avatar_url || null,
         account_type: 'INTERNAL', // Default account type
         status: 'PENDING_ASSIGNMENT',
@@ -77,24 +83,5 @@ export class AuthService {
       ...profile,
       permissions: userPermissions,
     };
-  }
-
-  async bootstrapProfile(authUserId: string, email: string, fullName?: string, avatarUrl?: string) {
-    let profile = await this.dbService.db.query.profiles.findFirst({
-      where: eq(profiles.auth_user_id, authUserId),
-    });
-
-    if (!profile) {
-      const [newProfile] = await this.dbService.db.insert(profiles).values({
-        auth_user_id: authUserId,
-        email,
-        full_name: fullName || null,
-        avatar_url: avatarUrl || null,
-        account_type: 'INTERNAL',
-        status: 'PENDING_ASSIGNMENT',
-      }).returning();
-      profile = newProfile;
-    }
-    return profile;
   }
 }

@@ -7,6 +7,14 @@ import { RequirePermissions } from '../auth/require-permissions.decorator';
 import { CurrentProfile } from '../auth/current-profile.decorator';
 import { PERMISSIONS } from '@pgs/permissions';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import {
+  UpdateUserAccessSchema,
+  UpdateUserStatusSchema,
+  UuidSchema,
+  UpdateUserAccessInput,
+  UpdateUserStatusInput,
+} from '@pgs/validation';
 
 @ApiTags('Admin Users')
 @ApiBearerAuth()
@@ -28,7 +36,7 @@ export class UsersController {
 
   @RequirePermissions(PERMISSIONS.USER_VIEW)
   @Get(':id')
-  async getUserById(@Param('id') id: string) {
+  async getUserById(@Param('id', new ZodValidationPipe(UuidSchema)) id: string) {
     const user = await this.usersService.findOne(id);
     return {
       data: user,
@@ -40,8 +48,8 @@ export class UsersController {
   @RequirePermissions(PERMISSIONS.USER_ASSIGN_ROLE)
   @Patch(':id/access')
   async updateAccess(
-    @Param('id') id: string,
-    @Body() body: any, // We validate inside service or via pipe
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @Body(new ZodValidationPipe(UpdateUserAccessSchema)) body: UpdateUserAccessInput,
     @CurrentProfile() actor: any
   ) {
     const user = await this.usersService.updateAccess(id, body, actor.id);
@@ -55,8 +63,8 @@ export class UsersController {
   @RequirePermissions(PERMISSIONS.USER_MANAGE)
   @Patch(':id/status')
   async updateStatus(
-    @Param('id') id: string,
-    @Body() body: any,
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @Body(new ZodValidationPipe(UpdateUserStatusSchema)) body: UpdateUserStatusInput,
     @CurrentProfile() actor: any
   ) {
     const user = await this.usersService.updateStatus(id, body, actor.id);

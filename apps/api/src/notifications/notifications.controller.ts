@@ -4,6 +4,8 @@ import { SupabaseJwtGuard } from '../auth/supabase-jwt.guard';
 import { ActiveProfileGuard } from '../auth/active-profile.guard';
 import { CurrentProfile } from '../auth/current-profile.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { UuidSchema, UpdateNotificationPreferencesSchema, UpdateNotificationPreferencesInput } from '@pgs/validation';
 
 @ApiTags('Notifications')
 @ApiBearerAuth()
@@ -33,7 +35,10 @@ export class NotificationsController {
   }
 
   @Patch('notifications/:id/read')
-  async markAsRead(@Param('id') id: string, @CurrentProfile() profile: any) {
+  async markAsRead(
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @CurrentProfile() profile: any
+  ) {
     const recipient = await this.notificationsService.markAsRead(id, profile.id);
     return {
       data: recipient,
@@ -43,7 +48,10 @@ export class NotificationsController {
   }
 
   @Patch('notifications/:id/handled')
-  async markAsHandled(@Param('id') id: string, @CurrentProfile() profile: any) {
+  async markAsHandled(
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @CurrentProfile() profile: any
+  ) {
     const recipient = await this.notificationsService.markAsHandled(id, profile.id);
     return {
       data: recipient,
@@ -53,7 +61,10 @@ export class NotificationsController {
   }
 
   @Patch('notifications/:id/archive')
-  async markAsArchived(@Param('id') id: string, @CurrentProfile() profile: any) {
+  async markAsArchived(
+    @Param('id', new ZodValidationPipe(UuidSchema)) id: string,
+    @CurrentProfile() profile: any
+  ) {
     const recipient = await this.notificationsService.markAsArchived(id, profile.id);
     return {
       data: recipient,
@@ -85,7 +96,7 @@ export class NotificationsController {
   @Patch('notification-preferences')
   async updatePreferences(
     @CurrentProfile() profile: any,
-    @Body() body: { preferences: Array<{ event_type: string; channel: string; enabled: boolean }> }
+    @Body(new ZodValidationPipe(UpdateNotificationPreferencesSchema)) body: UpdateNotificationPreferencesInput
   ) {
     const list = await this.notificationsService.updatePreferences(profile.id, body.preferences);
     return {

@@ -22,13 +22,10 @@ export default function AuthCallbackPage() {
         const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         const res = await fetch(`${apiBase}/api/auth/bootstrap`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            auth_user_id: session.user.id,
-            email: session.user.email,
-            full_name: session.user.user_metadata?.full_name,
-            avatar_url: session.user.user_metadata?.avatar_url,
-          }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
         });
 
         if (!res.ok) {

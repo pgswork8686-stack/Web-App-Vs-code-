@@ -22,11 +22,6 @@ export class PermissionGuard implements CanActivate {
       return false;
     }
 
-    // Admin has override access to everything
-    if (user.role && user.role.code === 'ADMIN') {
-      return true;
-    }
-
     const hasPermission = requiredPermissions.every((perm) =>
       user.permissions?.includes(perm)
     );

@@ -1,6 +1,7 @@
 import { createBrowserSupabaseClient } from '@pgs/auth';
+import { env } from '../config/env';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mpljxkaxkektcuvnosiq.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'anon-key';
-
-export const supabase = createBrowserSupabaseClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createBrowserSupabaseClient(
+  env.NEXT_PUBLIC_SUPABASE_URL,
+  env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
