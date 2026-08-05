@@ -1,0 +1,25 @@
+{
+  "name": "pgs-hub-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "db:generate": "pnpm --filter database db:generate",
+    "db:check": "pnpm --filter database db:check",
+    "db:migrate:local": "pnpm --filter database db:migrate:local",
+    "db:studio": "pnpm --filter database db:studio",
+    "bootstrap:admin": "pnpm --filter database exec tsx src/bootstrap-admin.ts",
+    "db:seed": "pnpm --filter database db:seed"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.14",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "packageManager": "pnpm@11.20.0"
+}
