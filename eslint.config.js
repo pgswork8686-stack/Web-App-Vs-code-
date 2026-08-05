@@ -15,9 +15,16 @@ module.exports = [
       "@typescript-eslint": typescriptEslint,
     },
     rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["**/*.spec.ts", "**/*.spec.tsx", "**/env.spec.ts"],
+    rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
-      "no-console": "off",
     },
   },
 ];

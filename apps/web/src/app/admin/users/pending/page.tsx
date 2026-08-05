@@ -5,13 +5,37 @@ import AppShell from '@/components/app-shell';
 import QueryProvider from '@/components/query-provider';
 import { supabase } from '@/lib/supabase';
 import { LoadingState } from '@pgs/ui-web';
-import { UserCheck, ShieldAlert, Award } from 'lucide-react';
+import { UserCheck, Award } from 'lucide-react';
+import { env } from '../../../../config/env';
+
+interface UserItem {
+  id: string;
+  full_name: string | null;
+  email: string;
+  status: string;
+}
+
+interface RoleItem {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface DepartmentItem {
+  id: string;
+  name: string;
+}
+
+interface OrgItem {
+  id: string;
+  name: string;
+}
 
 function PendingUsersList() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [orgs, setOrgs] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
+  const [orgs, setOrgs] = useState<OrgItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -20,7 +44,7 @@ function PendingUsersList() {
   const [selectedOrg, setSelectedOrg] = useState<string>('');
   const [accountType, setAccountType] = useState<'INTERNAL' | 'CLIENT'>('INTERNAL');
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const apiBase = env.NEXT_PUBLIC_API_URL;
 
   const fetchData = async () => {
     try {
@@ -43,7 +67,7 @@ function PendingUsersList() {
         const o = await orgsRes.json();
 
         // Filter for PENDING_ASSIGNMENT
-        setUsers(u.data.filter((user: any) => user.status === 'PENDING_ASSIGNMENT'));
+        setUsers(u.data.filter((user: UserItem) => user.status === 'PENDING_ASSIGNMENT'));
         setRoles(r.data);
         setDepartments(d.data);
         setOrgs(o.data);
@@ -152,7 +176,7 @@ function PendingUsersList() {
                     <td className="p-4">
                       <select 
                         value={accountType} 
-                        onChange={(e: any) => setAccountType(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAccountType(e.target.value as 'INTERNAL' | 'CLIENT')}
                         className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-900"
                       >
                         <option value="INTERNAL">Nội bộ (Internal)</option>

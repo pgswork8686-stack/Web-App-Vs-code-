@@ -96,8 +96,8 @@ export class UsersService {
         action: 'user.assign_role',
         entityType: 'profiles',
         entityId: id,
-        beforeData: profile as any,
-        afterData: updatedProfile as any,
+        beforeData: profile as unknown as Record<string, unknown>,
+        afterData: updatedProfile as unknown as Record<string, unknown>,
       });
 
       return updatedProfile;
@@ -170,8 +170,8 @@ export class UsersService {
         action: 'user.update_status',
         entityType: 'profiles',
         entityId: id,
-        beforeData: profile as any,
-        afterData: updatedProfile as any,
+        beforeData: profile as unknown as Record<string, unknown>,
+        afterData: updatedProfile as unknown as Record<string, unknown>,
       });
 
       return updatedProfile;

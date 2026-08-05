@@ -38,7 +38,7 @@ export function parseApiEnv(source: Record<string, string | undefined>): ApiEnv 
 let parsedEnv: ApiEnv;
 try {
   parsedEnv = parseApiEnv(process.env as Record<string, string | undefined>);
-} catch (err: any) {
+} catch (err: unknown) {
   if (err instanceof EnvironmentValidationError) {
     console.error('❌ Environment validation failed:');
     err.missingOrInvalidVars.forEach((v) => console.error(`   - ${v}`));

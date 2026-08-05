@@ -17,8 +17,9 @@ export class SupabaseJwtGuard implements CanActivate {
       const authUser = await this.authService.verifyAccessToken(token);
       request.authUser = authUser;
       return true;
-    } catch (err: any) {
-      throw new UnauthorizedException(err.message || 'AUTH_TOKEN_INVALID');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'AUTH_TOKEN_INVALID';
+      throw new UnauthorizedException(message);
     }
   }
 }

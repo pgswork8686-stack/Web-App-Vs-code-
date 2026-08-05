@@ -1,15 +1,16 @@
 import { Injectable, UnauthorizedException, UnprocessableEntityException, ConflictException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { profiles, roles, rolePermissions, permissions } from '@pgs/database';
+import { profiles, rolePermissions, permissions } from '@pgs/database';
 import { eq } from '@pgs/database';
 import { AuditService } from '../audit/audit.service';
 import { createApiServiceRoleClient } from '@pgs/auth';
 import { env } from '../config/env';
 import { VerifiedAuthUser, CurrentProfileContext } from './auth.types';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class AuthService {
-  private supabaseAdminClient: any;
+  private supabaseAdminClient: SupabaseClient;
 
   constructor(
     private readonly dbService: DatabaseService,
@@ -67,18 +68,30 @@ export class AuthService {
 
     return {
       ...profile,
-      account_type: profile.account_type as any,
-      status: profile.status as any,
-      role: profile.role as any,
-      department: profile.department as any,
-      customerOrganization: profile.customerOrganization as any,
+      account_type: profile.account_type as 'INTERNAL' | 'CLIENT' | null,
+      status: profile.status as 'PENDING_ASSIGNMENT' | 'ACTIVE' | 'SUSPENDED' | 'DISABLED',
+      role: profile.role ? {
+        id: profile.role.id,
+        code: profile.role.code as 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'ACCOUNTANT' | 'CLIENT',
+        name: profile.role.name,
+      } : null,
+      department: profile.department ? {
+        id: profile.department.id,
+        code: profile.department.code,
+        name: profile.department.name,
+      } : null,
+      customerOrganization: profile.customerOrganization ? {
+        id: profile.customerOrganization.id,
+        code: profile.customerOrganization.code,
+        name: profile.customerOrganization.name,
+      } : null,
       permissions: userPermissions,
     };
   }
 
-  // 3. Idempotent Profile Bootstrapping
+  // 3. Idempotent Profile Bootstrapping inside Transaction
   async bootstrapProfile(authUser: VerifiedAuthUser): Promise<CurrentProfileContext> {
-    let existingProfile = await this.findProfileByAuthUserId(authUser.id);
+    const existingProfile = await this.findProfileByAuthUserId(authUser.id);
     if (existingProfile) {
       // Idempotency check: only update safe fields like last_login_at
       await this.dbService.db
@@ -95,27 +108,31 @@ export class AuthService {
       };
     }
 
-    // Attempt insert with conflict fallback to avoid duplicate race conditions
+    // Attempt insert and audit logging inside a transaction
     try {
-      const [newProfile] = await this.dbService.db
-        .insert(profiles)
-        .values({
-          auth_user_id: authUser.id,
-          email: authUser.email,
-          full_name: authUser.fullName || authUser.email.split('@')[0],
-          avatar_url: authUser.avatarUrl || null,
-          account_type: null, // nullable initially
-          status: 'PENDING_ASSIGNMENT',
-          last_login_at: new Date(),
-        })
-        .returning();
+      const newProfile = await this.dbService.db.transaction(async (tx) => {
+        const [inserted] = await tx
+          .insert(profiles)
+          .values({
+            auth_user_id: authUser.id,
+            email: authUser.email,
+            full_name: authUser.fullName || authUser.email.split('@')[0],
+            avatar_url: authUser.avatarUrl || null,
+            account_type: null,
+            status: 'PENDING_ASSIGNMENT',
+            last_login_at: new Date(),
+          })
+          .returning();
 
-      await this.auditService.log({
-        actorProfileId: newProfile.id,
-        action: 'auth.register_profile',
-        entityType: 'profiles',
-        entityId: newProfile.id,
-        afterData: newProfile,
+        await this.auditService.logWithTransaction(tx, {
+          actorProfileId: inserted.id,
+          action: 'auth.register_profile',
+          entityType: 'profiles',
+          entityId: inserted.id,
+          afterData: inserted as unknown as Record<string, unknown>,
+        });
+
+        return inserted;
       });
 
       return {
@@ -127,7 +144,7 @@ export class AuthService {
         customerOrganization: null,
         permissions: [],
       };
-    } catch (err) {
+    } catch {
       // Fetch it again in case it was created concurrently
       const profile = await this.findProfileByAuthUserId(authUser.id);
       if (!profile) {

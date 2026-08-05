@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { env } from '../../config/env';
-import { Chrome, LogIn } from 'lucide-react';
+import { Chrome } from 'lucide-react';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);

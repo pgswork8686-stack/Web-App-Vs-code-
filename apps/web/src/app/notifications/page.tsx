@@ -5,13 +5,22 @@ import AppShell from '@/components/app-shell';
 import QueryProvider from '@/components/query-provider';
 import { supabase } from '@/lib/supabase';
 import { LoadingState } from '@pgs/ui-web';
-import { Bell, MailOpen, CheckCircle, Archive } from 'lucide-react';
+import { Bell, MailOpen } from 'lucide-react';
+import { env } from '../../config/env';
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
 
 function NotificationsList() {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const apiBase = env.NEXT_PUBLIC_API_URL;
 
   const fetchNotifications = async () => {
     try {
@@ -79,7 +88,7 @@ function NotificationsList() {
                   <span className={`h-2 w-2 rounded-full ${notif.read_at ? 'bg-transparent' : 'bg-indigo-500'}`} />
                   <h4 className="font-semibold text-slate-900 text-sm">{notif.title}</h4>
                 </div>
-                <p className="text-xs text-slate-650 pl-4">{notif.body}</p>
+                <p className="text-xs text-slate-600 pl-4">{notif.body}</p>
                 <p className="text-[10px] text-slate-400 pl-4">{new Date(notif.created_at).toLocaleString('vi-VN')}</p>
               </div>
 

@@ -22,6 +22,13 @@
       "when": 1785897709293,
       "tag": "0002_workable_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785897800000,
+      "tag": "0003_strict_active_constraints",
+      "breakpoints": true
     }
   ]
 }

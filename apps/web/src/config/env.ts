@@ -33,7 +33,7 @@ try {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   });
-} catch (err: any) {
+} catch (err: unknown) {
   if (err instanceof WebEnvironmentValidationError) {
     console.error('❌ Web Environment validation failed:');
     err.invalidVars.forEach((v) => console.error(`   - ${v}`));

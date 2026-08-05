@@ -3,7 +3,7 @@
 import React from 'react';
 import AppShell from '@/components/app-shell';
 import QueryProvider from '@/components/query-provider';
-import { UserCheck, Shield, Users, Building, ChevronRight } from 'lucide-react';
+import { UserCheck, Shield, Building, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 function AdminOverview() {

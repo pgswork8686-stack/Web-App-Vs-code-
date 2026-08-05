@@ -7,14 +7,15 @@ import { supabase } from '../lib/supabase';
 import { 
   Users, Building, ShieldCheck, UserCheck, Briefcase, Clock, FileText, 
   Settings, LogOut, Bell, Menu, X, ChevronRight, LayoutDashboard,
-  CheckSquare, FileSpreadsheet, CreditCard, DollarSign, Wallet, FilePlus, AlertCircle
+  CheckSquare, FileSpreadsheet, CreditCard, DollarSign, Wallet, AlertCircle
 } from 'lucide-react';
 import { LoadingState } from '@pgs/ui-web';
+import { env } from '../config/env';
 
 interface NavItem {
   name: string;
   href: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -22,7 +23,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: profile, isLoading, error } = useProfile();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Auto redirect on auth check
@@ -39,7 +39,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const apiBase = env.NEXT_PUBLIC_API_URL;
         const res = await fetch(`${apiBase}/api/notifications/unread-count`, {
           headers: { 'Authorization': `Bearer ${session.access_token}` },
         });

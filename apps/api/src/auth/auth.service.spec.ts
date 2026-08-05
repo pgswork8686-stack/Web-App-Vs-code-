@@ -50,7 +50,6 @@ describe('AuthService (Refactored)', () => {
 
     authService = new AuthService(mockDbService as any, mockAuditService as any);
 
-    // Mock Supabase admin client auth.getUser
     authService['supabaseAdminClient'] = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
@@ -65,8 +64,8 @@ describe('AuthService (Refactored)', () => {
           },
           error: null,
         }),
-      },
-    };
+      } as any,
+    } as any;
   });
 
   describe('verifyAccessToken', () => {
