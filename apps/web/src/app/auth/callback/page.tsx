@@ -4,6 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import { LoadingState } from '@pgs/ui-web';
+import { env } from '../../../config/env';
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return 'Xác thực không thành công.';
+}
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -19,7 +25,9 @@ export default function AuthCallbackPage() {
         }
 
         setStatusText('Đang đồng bộ hồ sơ người dùng...');
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const apiBase = env.NEXT_PUBLIC_API_URL;
+        
+        // POST /auth/bootstrap to idempotent register/bootstrap
         const res = await fetch(`${apiBase}/api/auth/bootstrap`, {
           method: 'POST',
           headers: { 
@@ -28,37 +36,41 @@ export default function AuthCallbackPage() {
           },
         });
 
+        if (res.status === 401) {
+          router.push('/login');
+          return;
+        }
+
         if (!res.ok) {
-          throw new Error('Đồng bộ dữ liệu người dùng thất bại.');
+          throw new Error(`Đồng bộ dữ liệu người dùng thất bại (Mã lỗi: ${res.status}).`);
         }
 
-        const { data: profile } = await res.json();
-        
-        // Fetch full profile info using token to inspect roles
-        const profileRes = await fetch(`${apiBase}/api/auth/me`, {
-          headers: { 'Authorization': `Bearer ${session.access_token}` },
-        });
+        const json = await res.json();
+        const profile = json.data;
 
-        if (!profileRes.ok) {
-          // If profile fetch fails or still pending, go to pending
+        if (!profile) {
+          throw new Error('Dữ liệu hồ sơ không hợp lệ từ hệ thống.');
+        }
+
+        // Redirect based on profile status and role
+        if (profile.status === 'PENDING_ASSIGNMENT') {
           router.push('/pending-access');
           return;
         }
 
-        const { data: fullProfile } = await profileRes.json();
-        
-        if (fullProfile.status === 'PENDING_ASSIGNMENT' || !fullProfile.role) {
-          router.push('/pending-access');
+        if (profile.status === 'SUSPENDED' || profile.status === 'DISABLED') {
+          router.push('/unauthorized');
           return;
         }
 
-        if (fullProfile.status === 'SUSPENDED' || fullProfile.status === 'DISABLED') {
+        if (!profile.role) {
+          // ACTIVE but no role is a configuration error
           router.push('/unauthorized');
           return;
         }
 
         // Role-based routing
-        const role = fullProfile.role.code;
+        const role = profile.role.code;
         switch (role) {
           case 'ADMIN':
             router.push('/admin');
@@ -78,8 +90,8 @@ export default function AuthCallbackPage() {
           default:
             router.push('/unauthorized');
         }
-      } catch (err: any) {
-        setErrorText(err.message || 'Xác thực không thành công.');
+      } catch (err: unknown) {
+        setErrorText(getErrorMessage(err));
       }
     };
 

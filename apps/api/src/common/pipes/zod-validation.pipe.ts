@@ -1,19 +1,24 @@
 import { PipeTransform, ArgumentMetadata, BadRequestException } from '@nestjs/common';
-import { ZodSchema } from 'zod';
+import { ZodSchema, ZodError } from 'zod';
 
 export class ZodValidationPipe implements PipeTransform {
   constructor(private schema: ZodSchema) {}
 
   transform(value: unknown, metadata: ArgumentMetadata) {
     try {
-      const parsedValue = this.schema.parse(value);
-      return parsedValue;
-    } catch (error: any) {
-      throw new BadRequestException({
-        statusCode: 400,
-        message: 'Dữ liệu đầu vào không hợp lệ',
-        errors: error.errors || error.message,
-      });
+      return this.schema.parse(value);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new BadRequestException({
+          code: 'VALIDATION_ERROR',
+          message: 'Dữ liệu đầu vào không hợp lệ',
+          details: error.issues.map((issue) => ({
+            field: issue.path.join('.'),
+            message: issue.message,
+          })),
+        });
+      }
+      throw new BadRequestException('Validation failed');
     }
   }
 }

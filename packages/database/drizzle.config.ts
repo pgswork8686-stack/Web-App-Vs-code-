@@ -7,14 +7,16 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env.local') });
 // Fallback về .env.local cùng cấp
 dotenv.config({ path: path.resolve(__dirname, '.env.local') });
 
+const dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+if (!dbUrl) {
+  throw new Error('Drizzle configuration error: Both DIRECT_URL and DATABASE_URL are missing from environment variables.');
+}
+
 export default defineConfig({
   schema: './src/schema.ts',
   out: './migrations',
   dialect: 'postgresql',
   dbCredentials: {
-    // DIRECT_URL dùng session mode (port 5432) — phù hợp cho migration
-    url: process.env.DIRECT_URL ||
-         process.env.DATABASE_URL ||
-         'postgresql://postgres:postgres@localhost:54322/postgres',
+    url: dbUrl,
   },
 });

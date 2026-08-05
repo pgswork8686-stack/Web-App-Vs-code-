@@ -9,16 +9,16 @@ export class SupabaseJwtGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Thiếu token xác thực');
+      throw new UnauthorizedException('AUTH_TOKEN_MISSING');
     }
 
     const token = authHeader.split(' ')[1];
     try {
-      const profile = await this.authService.verifyAndGetProfile(token);
-      request.user = profile;
+      const authUser = await this.authService.verifyAccessToken(token);
+      request.authUser = authUser;
       return true;
-    } catch (err) {
-      throw new UnauthorizedException(err.message || 'Xác thực thất bại');
+    } catch (err: any) {
+      throw new UnauthorizedException(err.message || 'AUTH_TOKEN_INVALID');
     }
   }
 }

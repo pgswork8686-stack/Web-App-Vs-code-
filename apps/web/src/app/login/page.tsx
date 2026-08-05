@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { env } from '../../config/env';
 import { Chrome, LogIn } from 'lucide-react';
 
 export default function LoginPage() {
@@ -15,12 +16,13 @@ export default function LoginPage() {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
         },
       });
       if (err) throw err;
-    } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra khi bắt đầu đăng nhập bằng Google.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Có lỗi xảy ra khi bắt đầu đăng nhập bằng Google.';
+      setError(msg);
       setLoading(false);
     }
   };

@@ -7,31 +7,33 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0"
   },
   "dependencies": {
-    "next": "^14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "lucide-react": "^0.439.0",
-    "zod": "^3.23.8",
+    "@pgs/auth": "workspace:*",
+    "@pgs/design-tokens": "workspace:*",
+    "@pgs/permissions": "workspace:*",
+    "@pgs/types": "workspace:*",
+    "@pgs/ui-web": "workspace:*",
+    "@pgs/validation": "workspace:*",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.1",
     "@tanstack/react-query": "^5.52.2",
-    "@pgs/permissions": "workspace:*",
-    "@pgs/validation": "workspace:*",
-    "@pgs/auth": "workspace:*",
-    "@pgs/ui-web": "workspace:*",
-    "@pgs/types": "workspace:*",
-    "@pgs/design-tokens": "workspace:*"
+    "lucide-react": "^0.439.0",
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "typescript": "^5.5.4",
-    "tailwindcss": "^3.4.10",
+    "autoprefixer": "^10.4.20",
     "postcss": "^8.4.41",
-    "autoprefixer": "^10.4.20"
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.9"
   }
 }

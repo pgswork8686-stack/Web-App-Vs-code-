@@ -1,7 +1,10 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SupabaseJwtGuard } from './supabase-jwt.guard';
+import { ProfileContextGuard } from './profile-context.guard';
 import { CurrentProfile } from './current-profile.decorator';
+import { CurrentAuthUser } from './current-auth-user.decorator';
+import { VerifiedAuthUser, CurrentProfileContext } from './auth.types';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Auth')
@@ -10,9 +13,9 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiBearerAuth()
-  @UseGuards(SupabaseJwtGuard)
+  @UseGuards(SupabaseJwtGuard, ProfileContextGuard)
   @Get('me')
-  async getMe(@CurrentProfile() profile: any) {
+  async getMe(@CurrentProfile() profile: CurrentProfileContext) {
     return {
       data: profile,
       meta: {},
@@ -23,7 +26,8 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(SupabaseJwtGuard)
   @Post('bootstrap')
-  async bootstrap(@CurrentProfile() profile: any) {
+  async bootstrap(@CurrentAuthUser() authUser: VerifiedAuthUser) {
+    const profile = await this.authService.bootstrapProfile(authUser);
     return {
       data: profile,
       meta: {},

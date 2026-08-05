@@ -15,6 +15,13 @@
       "when": 1785896069718,
       "tag": "0001_last_mongoose",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785897709293,
+      "tag": "0002_workable_nekra",
+      "breakpoints": true
     }
   ]
 }

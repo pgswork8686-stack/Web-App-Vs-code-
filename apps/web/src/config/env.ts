@@ -3,32 +3,51 @@ import { z } from 'zod';
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(10),
-  NEXT_PUBLIC_SITE_URL: z.string().url().default('http://localhost:3000'),
-  NEXT_PUBLIC_API_URL: z.string().url().default('http://localhost:3001'),
+  NEXT_PUBLIC_SITE_URL: z.string().url(),
+  NEXT_PUBLIC_API_URL: z.string().url(),
 });
 
-// Since Next.js bundles variables prefixed with NEXT_PUBLIC_* at build time/runtime,
-// safeParse them from process.env.
-const parsed = envSchema.safeParse({
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-});
+export type WebEnv = z.infer<typeof envSchema>;
 
-if (!parsed.success) {
-  console.error('❌ Invalid Web environment configuration:');
-  parsed.error.issues.forEach((issue) => {
-    console.error(`   - Variable: ${issue.path.join('.')}, Issue: ${issue.message}`);
-  });
-  if (typeof window === 'undefined') {
-    process.exit(1);
+export class WebEnvironmentValidationError extends Error {
+  constructor(public invalidVars: string[]) {
+    super(`Web environment validation failed: ${invalidVars.join(', ')}`);
+    this.name = 'WebEnvironmentValidationError';
   }
 }
 
-export const env = parsed.success ? parsed.data : {
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-};
+export function parseWebEnv(source: Record<string, string | undefined>): WebEnv {
+  const parsed = envSchema.safeParse(source);
+  if (!parsed.success) {
+    const invalidVars = parsed.error.issues.map((issue) => issue.path.join('.'));
+    throw new WebEnvironmentValidationError(invalidVars);
+  }
+  return parsed.data;
+}
+
+let parsedEnv: WebEnv;
+try {
+  parsedEnv = parseWebEnv({
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  });
+} catch (err: any) {
+  if (err instanceof WebEnvironmentValidationError) {
+    console.error('❌ Web Environment validation failed:');
+    err.invalidVars.forEach((v) => console.error(`   - ${v}`));
+    if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') {
+      process.exit(1);
+    }
+  }
+  // Fallback to avoid build/compile crash in tests or environment initialization
+  parsedEnv = {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key',
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  };
+}
+
+export const env = parsedEnv;

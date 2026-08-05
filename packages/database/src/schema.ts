@@ -69,7 +69,7 @@ export const profiles = pgTable('profiles', {
   email: text('email').notNull(),
   full_name: text('full_name'),
   avatar_url: text('avatar_url'),
-  account_type: accountTypeEnum('account_type').notNull(), // INTERNAL, CLIENT
+  account_type: accountTypeEnum('account_type'), // INTERNAL, CLIENT
   role_id: uuid('role_id').references(() => roles.id, { onDelete: 'set null' }),
   department_id: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
   customer_organization_id: uuid('customer_organization_id').references(() => customerOrganizations.id, { onDelete: 'set null' }),

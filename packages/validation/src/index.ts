@@ -4,21 +4,70 @@ import { SYSTEM_ROLES } from '@pgs/permissions';
 export const UpdateUserAccessSchema = z.object({
   account_type: z.enum(['INTERNAL', 'CLIENT']),
   role_code: z.enum([SYSTEM_ROLES.ADMIN, SYSTEM_ROLES.MANAGER, SYSTEM_ROLES.EMPLOYEE, SYSTEM_ROLES.ACCOUNTANT, SYSTEM_ROLES.CLIENT]),
-  department_id: z.string().nullable().optional(),
-  customer_organization_id: z.string().nullable().optional(),
-}).refine((data) => {
-  if (data.account_type === 'CLIENT') {
-    return data.role_code === SYSTEM_ROLES.CLIENT && !!data.customer_organization_id;
-  } else {
-    // Internal user
-    if (data.role_code === SYSTEM_ROLES.ADMIN) {
-      return true; // Admin doesn't strictly need a department
+  department_id: z.string().uuid('department_id must be a valid UUID').nullable().default(null),
+  customer_organization_id: z.string().uuid('customer_organization_id must be a valid UUID').nullable().default(null),
+}).superRefine((data, ctx) => {
+  const { account_type, role_code, department_id, customer_organization_id } = data;
+
+  if (account_type === 'INTERNAL') {
+    if (role_code === SYSTEM_ROLES.CLIENT) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'role_code cannot be CLIENT for account_type INTERNAL',
+        path: ['role_code'],
+      });
     }
-    return data.role_code !== SYSTEM_ROLES.CLIENT && !!data.department_id;
+
+    if (customer_organization_id !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'customer_organization_id must be null for account_type INTERNAL',
+        path: ['customer_organization_id'],
+      });
+    }
+
+    if (role_code !== SYSTEM_ROLES.ADMIN && department_id === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'department_id is required for INTERNAL staff roles (except ADMIN)',
+        path: ['department_id'],
+      });
+    }
   }
-}, {
-  message: 'Ràng buộc phân quyền không hợp lệ (ví dụ: vai trò CLIENT yêu cầu tổ chức khách hàng; nhân sự nội bộ yêu cầu phòng ban)',
-  path: ['role_code'],
+
+  if (account_type === 'CLIENT') {
+    if (role_code !== SYSTEM_ROLES.CLIENT) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'role_code must be CLIENT for account_type CLIENT',
+        path: ['role_code'],
+      });
+    }
+
+    if (customer_organization_id === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'customer_organization_id is required for account_type CLIENT',
+        path: ['customer_organization_id'],
+      });
+    }
+
+    if (department_id !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'department_id must be null for account_type CLIENT',
+        path: ['department_id'],
+      });
+    }
+  }
+}).transform((data) => {
+  // Normalize unused fields to null
+  return {
+    account_type: data.account_type,
+    role_code: data.role_code,
+    department_id: data.account_type === 'CLIENT' ? null : data.department_id,
+    customer_organization_id: data.account_type === 'INTERNAL' ? null : data.customer_organization_id,
+  };
 });
 
 export type UpdateUserAccessInput = z.infer<typeof UpdateUserAccessSchema>;

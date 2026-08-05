@@ -1,9 +1,11 @@
-import { Injectable, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, UnprocessableEntityException, ConflictException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { profiles, roles, rolePermissions, permissions } from '@pgs/database';
 import { eq } from '@pgs/database';
 import { AuditService } from '../audit/audit.service';
 import { createApiServiceRoleClient } from '@pgs/auth';
+import { env } from '../config/env';
+import { VerifiedAuthUser, CurrentProfileContext } from './auth.types';
 
 @Injectable()
 export class AuthService {
@@ -13,27 +15,35 @@ export class AuthService {
     private readonly dbService: DatabaseService,
     private readonly auditService: AuditService
   ) {
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://mpljxkaxkektcuvnosiq.supabase.co';
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'service-key';
-    this.supabaseAdminClient = createApiServiceRoleClient(supabaseUrl, supabaseServiceKey);
+    this.supabaseAdminClient = createApiServiceRoleClient(
+      env.SUPABASE_URL,
+      env.SUPABASE_SERVICE_ROLE_KEY
+    );
   }
 
-  // Verify Bearer Token and get user profile with permissions
-  async verifyAndGetProfile(token: string) {
+  // 1. Verify Access Token Only (No Database creation)
+  async verifyAccessToken(token: string): Promise<VerifiedAuthUser> {
     const { data: { user }, error } = await this.supabaseAdminClient.auth.getUser(token);
     if (error || !user) {
-      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
+      throw new UnauthorizedException('AUTH_TOKEN_INVALID');
     }
 
     if (!user.email) {
       throw new UnprocessableEntityException('AUTH_EMAIL_REQUIRED');
     }
 
-    const normalizedEmail = user.email.toLowerCase();
+    return {
+      id: user.id,
+      email: user.email.toLowerCase(),
+      fullName: user.user_metadata?.full_name || null,
+      avatarUrl: user.user_metadata?.avatar_url || null,
+    };
+  }
 
-    // 1. Get or create profile
-    let profile = await this.dbService.db.query.profiles.findFirst({
-      where: eq(profiles.auth_user_id, user.id),
+  // 2. Fetch Profile only (No Mutation)
+  async findProfileByAuthUserId(authUserId: string): Promise<CurrentProfileContext | null> {
+    const profile = await this.dbService.db.query.profiles.findFirst({
+      where: eq(profiles.auth_user_id, authUserId),
       with: {
         role: true,
         department: true,
@@ -42,33 +52,9 @@ export class AuthService {
     });
 
     if (!profile) {
-      // Create new profile with PENDING_ASSIGNMENT status
-      const [newProfile] = await this.dbService.db.insert(profiles).values({
-        auth_user_id: user.id,
-        email: normalizedEmail,
-        full_name: user.user_metadata?.full_name || normalizedEmail.split('@')[0],
-        avatar_url: user.user_metadata?.avatar_url || null,
-        account_type: 'INTERNAL', // Default account type
-        status: 'PENDING_ASSIGNMENT',
-      }).returning();
-
-      profile = {
-        ...newProfile,
-        role: null,
-        department: null,
-        customerOrganization: null,
-      };
-
-      await this.auditService.log({
-        actorProfileId: profile.id,
-        action: 'auth.register_profile',
-        entityType: 'profiles',
-        entityId: profile.id,
-        afterData: profile,
-      });
+      return null;
     }
 
-    // 2. Fetch permissions if role is assigned
     let userPermissions: string[] = [];
     if (profile.role_id) {
       const perms = await this.dbService.db
@@ -81,7 +67,82 @@ export class AuthService {
 
     return {
       ...profile,
+      account_type: profile.account_type as any,
+      status: profile.status as any,
+      role: profile.role as any,
+      department: profile.department as any,
+      customerOrganization: profile.customerOrganization as any,
       permissions: userPermissions,
     };
+  }
+
+  // 3. Idempotent Profile Bootstrapping
+  async bootstrapProfile(authUser: VerifiedAuthUser): Promise<CurrentProfileContext> {
+    let existingProfile = await this.findProfileByAuthUserId(authUser.id);
+    if (existingProfile) {
+      // Idempotency check: only update safe fields like last_login_at
+      await this.dbService.db
+        .update(profiles)
+        .set({
+          last_login_at: new Date(),
+          updated_at: new Date(),
+        })
+        .where(eq(profiles.id, existingProfile.id));
+
+      return {
+        ...existingProfile,
+        last_login_at: new Date(),
+      };
+    }
+
+    // Attempt insert with conflict fallback to avoid duplicate race conditions
+    try {
+      const [newProfile] = await this.dbService.db
+        .insert(profiles)
+        .values({
+          auth_user_id: authUser.id,
+          email: authUser.email,
+          full_name: authUser.fullName || authUser.email.split('@')[0],
+          avatar_url: authUser.avatarUrl || null,
+          account_type: null, // nullable initially
+          status: 'PENDING_ASSIGNMENT',
+          last_login_at: new Date(),
+        })
+        .returning();
+
+      await this.auditService.log({
+        actorProfileId: newProfile.id,
+        action: 'auth.register_profile',
+        entityType: 'profiles',
+        entityId: newProfile.id,
+        afterData: newProfile,
+      });
+
+      return {
+        ...newProfile,
+        account_type: null,
+        status: 'PENDING_ASSIGNMENT',
+        role: null,
+        department: null,
+        customerOrganization: null,
+        permissions: [],
+      };
+    } catch (err) {
+      // Fetch it again in case it was created concurrently
+      const profile = await this.findProfileByAuthUserId(authUser.id);
+      if (!profile) {
+        throw new Error('Đăng ký hồ sơ thất bại do lỗi không xác định');
+      }
+      return profile;
+    }
+  }
+
+  // 4. Retrieve Profile or throw if missing
+  async getRequiredProfile(authUserId: string): Promise<CurrentProfileContext> {
+    const profile = await this.findProfileByAuthUserId(authUserId);
+    if (!profile) {
+      throw new ConflictException('PROFILE_NOT_BOOTSTRAPPED');
+    }
+    return profile;
   }
 }

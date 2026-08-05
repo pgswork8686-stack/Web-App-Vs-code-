@@ -1,7 +1,13 @@
 import { getDb } from './index';
 import { profiles, roles, auditLogs } from './schema';
 import { eq, and } from 'drizzle-orm';
-import { readFileSync } from 'fs';
+
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// Load env from root workspace
+dotenv.config({ path: path.resolve(__dirname, '../../../.env.local') });
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
 async function main() {
   const emailArgIdx = process.argv.indexOf('--email');
@@ -11,7 +17,11 @@ async function main() {
   }
 
   const email = process.argv[emailArgIdx + 1].trim().toLowerCase();
-  const connStr = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres';
+  const connStr = process.env.DATABASE_URL;
+  if (!connStr) {
+    console.error('Lỗi bảo mật: Biến môi trường DATABASE_URL bị thiếu.');
+    process.exit(1);
+  }
   const db = getDb(connStr);
 
   console.log(`Đang kiểm tra cơ sở dữ liệu để phân quyền Admin cho email: ${email}...`);

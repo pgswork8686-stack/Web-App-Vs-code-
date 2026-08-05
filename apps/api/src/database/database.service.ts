@@ -1,20 +1,20 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { getDb } from '@pgs/database';
+import { getDb, DatabaseInstance } from '@pgs/database';
+import { env } from '../config/env';
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
-  private dbInstance: any;
+  private dbInstance!: DatabaseInstance;
 
   onModuleInit() {
-    const connStr = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres';
-    this.dbInstance = getDb(connStr);
+    this.dbInstance = getDb(env.DATABASE_URL);
   }
 
   onModuleDestroy() {
     // If postgres client has resources to clean up, handle it here
   }
 
-  get db() {
+  get db(): DatabaseInstance {
     return this.dbInstance;
   }
 }
