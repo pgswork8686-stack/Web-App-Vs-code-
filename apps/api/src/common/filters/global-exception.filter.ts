@@ -11,6 +11,7 @@ interface CustomRequest extends FastifyRequest {
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
+    console.error('[Exception Caught]', exception);
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<FastifyReply>();
     const request = ctx.getRequest<CustomRequest>();

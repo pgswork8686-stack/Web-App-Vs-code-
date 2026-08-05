@@ -34,6 +34,7 @@ export default function AuthCallbackPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`
           },
+          body: JSON.stringify({})
         });
 
         if (res.status === 401) {
